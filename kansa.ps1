@@ -374,7 +374,7 @@ Param(
     [Parameter(Mandatory=$false,Position=21)]
         [String[]]$ElkAlert=@(),
     [Parameter(Mandatory=$false,Position=22)]
-        [int32]$JobTimeout=600,
+        [int32]$JobTimeout=900,
     [Parameter(Mandatory=$false,Position=23)]
         [uint16[]]$ElkPort=@(1337),
     [Parameter(Mandatory=$false,Position=24)]
@@ -502,14 +502,15 @@ Param(
     # Need to maintain the order for "order of volatility"
     $ModuleHash = New-Object System.Collections.Specialized.OrderedDictionary
 
-    if (!(ls $ModuleScript | Select-Object -ExpandProperty PSIsContainer)) {
-        # User may have provided full path to a .ps1 module, which is how you run a single module explicitly
-        $ModuleHash.Add((ls $ModuleScript), $ModuleArgs)
+    if (Test-Path($ModuleScript)) {
+    	if (!(ls $ModuleScript | Select-Object -ExpandProperty PSIsContainer)) {
+        	# User may have provided full path to a .ps1 module, which is how you run a single module explicitly
+        	$ModuleHash.Add((ls $ModuleScript), $ModuleArgs)
 
-        if (Test-Path($ModuleScript)) {
-            $Module = ls $ModuleScript | Select-Object -ExpandProperty BaseName
-            Write-Verbose "Running module: `n$Module $ModuleArgs"
-            Return $ModuleHash
+        
+            	$Module = ls $ModuleScript | Select-Object -ExpandProperty BaseName
+           	Write-Verbose "Running module: `n$Module $ModuleArgs"
+            	Return $ModuleHash
         }
     }
     $ModConf = $ModulePath + "\" + "Modules.conf"
@@ -800,7 +801,11 @@ Param(
                 $bindeps = [string]$DirectivesHash.Get_Item("BINDEP") -split ';'
                 foreach($bindep in $bindeps) {
                 if ($bindep) {
-
+		 #$PSScriptRoot is parsed as literal string into $bindep from the module script rather than the directory path, below is a fix to replace the literal '$PSScriptRoot' with the directory path required
+		 if($bindep -match "PSScriptRoot"){
+		 $bindep = $bindep.Trim("$")
+		 $bindep = $bindep.Replace("PSScriptRoot", $PSScriptRoot)
+		 }
                     # Send-File only supports a single destination at a time, so we have to loop this.
                     # Fix for Issue 146, originally suggested by sc2pyro.
                     foreach ($PSSession in $PSSessions)
@@ -880,8 +885,10 @@ Param(
 
                 # Remove excess properties that we don't need in the module output
                 foreach ($i in $Recpt){
-                    $i.PSObject.Properties.Remove("PSShowComputerName")
+                    if(-not ([string]::IsNullOrEmpty($i))){
+		    $i.PSObject.Properties.Remove("PSShowComputerName")
                     $i.PSObject.Properties.Remove("RunspaceId")
+		    }
                 }
             
                 # Log errors from child jobs, including module and host that failed.
@@ -897,7 +904,7 @@ Param(
                     "ERROR: ${GetlessMod}'s output path length exceeds 260 character limit. Can't write the output to disk for $($ChildJob.Location)." | Add-Content -Encoding $Encoding $ErrorLog
                     Continue
                 }
-
+		try{
                 # save the data
                 switch -Wildcard ($OutputFormat) {
                     "*csv" {
@@ -973,6 +980,7 @@ Param(
                         $Recpt | Export-Csv -NoTypeInformation -Encoding $Encoding $Outfile
                     }
                 }
+		}catch{("Caught:{0}" -f $_)}
             }
 
             # Release memory reserved for Job data since we don't need it any more.

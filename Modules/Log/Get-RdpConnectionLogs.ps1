@@ -48,24 +48,58 @@ Param (
     [switch]$AllEvents
 )
 
+$LogName = "Microsoft-Windows-TerminalServices-RemoteConnectionManager/Operational"
+
+function Get-KansaWinEvents {
+    param(
+        [Parameter(Mandatory=$true)]
+        [hashtable]$FilterHashtable,
+        [Parameter(Mandatory=$true)]
+        [string]$MissingMessage
+    )
+
+    try {
+        Get-WinEvent -FilterHashtable $FilterHashtable -ErrorAction Stop
+    }
+    catch [System.Diagnostics.Eventing.Reader.EventLogNotFoundException] {
+        $Error.Clear()
+        Write-Warning "Event log '$($FilterHashtable.LogName)' was not found on this host. $MissingMessage"
+        @()
+    }
+    catch {
+        $Error.Clear()
+        if ($_.FullyQualifiedErrorId -like 'NoMatchingEventsFound*') {
+            Write-Warning $MissingMessage
+            @()
+        }
+        elseif ($_.Exception.Message -like '*There is not an event log*') {
+            Write-Warning "Event log '$($FilterHashtable.LogName)' was not found on this host. $MissingMessage"
+            @()
+        }
+        else {
+            Write-Warning "Unable to query event log '$($FilterHashtable.LogName)': $($_.Exception.Message)"
+            @()
+        }
+    }
+}
+
 if ($AllEvents) # Effectively a dump of the log, lots of uneccessary data here.
 {
     Write-Warning "Running this script in 'AllEvents' mode is not recommended as it returns a significant amount of unnecessary data."
     Start-Sleep -Seconds 1
     
-    Get-WinEvent -LogName "Microsoft-Windows-TerminalServices-RemoteConnectionManager/Operational" | `
+    Get-KansaWinEvents -FilterHashtable @{LogName=$LogName} -MissingMessage "No RDP connection manager events were found." | `
         Select-Object -Property TimeCreated, LogName, Id, Version, ProcessId, ThreadId, MachineName, UserId, Message
 }
 else # Targetted on authentication events.
 {
-    $RawEvents = Get-WinEvent -LogName "Microsoft-Windows-TerminalServices-RemoteConnectionManager/Operational" | `
-        Where-Object { $_.Id -eq 1149 }
+    $RawEvents = Get-KansaWinEvents -FilterHashtable @{LogName=$LogName; Id=1149} -MissingMessage "No RDP authentication events (event ID 1149) were found."
 
     $RawEvents | ForEach-Object `
     {  
         if ($_.Properties.Count -lt 3)
         {
-            Write-Warning "Event record missing expected fields. Skipping extended processing."
+            Write-Warning "RDP event ID $($_.Id) at $($_.TimeCreated) is missing expected User/Domain/SourceIp fields. Returning base event details."
             $_ | Select-Object -Property TimeCreated, LogName, Id, Version, ProcessId, ThreadId, MachineName, UserId
             continue
         }

@@ -11,17 +11,30 @@ Param(
 )
 
 If (Get-Command Get-SmbShare -ErrorAction SilentlyContinue) {
-    foreach ($share in (Get-SmbShare))
+    foreach ($share in (Get-SmbShare -ErrorAction SilentlyContinue))
     {
         $shareName = $share.Name
         Write-Verbose "Grabbing share rights for $shareName"
-        $shareOwner = (Get-Acl -Path $share.Path).Owner
+
+        if ([string]::IsNullOrWhiteSpace($share.Path)) {
+            Write-Warning "Share '$shareName' does not expose a filesystem path. Skipping NTFS permission collection for this share."
+            continue
+        }
+
+        try {
+            $shareAcl = Get-Acl -Path $share.Path -ErrorAction Stop
+            $shareOwner = $shareAcl.Owner
+        }
+        catch {
+            Write-Warning "Unable to read ACL for share '$shareName' at '$($share.Path)': $($_.Exception.Message)"
+            continue
+        }
     
         $o = "" | Select-Object Share, Path, Source, User, Type, IsOwner, Full, Write, Read, Other
         $o.Share = $share.Name
         $o.Path = $share.Path
 
-        foreach ($smbPerm in (Get-SmbShareAccess -Name $share.Name))
+        foreach ($smbPerm in (Get-SmbShareAccess -Name $share.Name -ErrorAction SilentlyContinue))
         {
             $o.Source = "SMB"
             $o.User = $smbPerm.AccountName
@@ -35,9 +48,14 @@ If (Get-Command Get-SmbShare -ErrorAction SilentlyContinue) {
             $o
         }
     
-        foreach ($aclPerm in (((Get-Acl -Path $share.Path).AccessToString).Split("`n")))
+        foreach ($aclPerm in (($shareAcl.AccessToString).Split("`n")))
         {
             $aclPermParts = $aclPerm -split "(Allow|Deny)"
+            if ($aclPermParts.Count -lt 3) {
+                Write-Warning "Unable to parse ACL entry for share '$shareName': $aclPerm"
+                continue
+            }
+
             $aclRights = ($aclPermParts[2].Trim() -split ",").Trim()
         
         
@@ -66,4 +84,7 @@ If (Get-Command Get-SmbShare -ErrorAction SilentlyContinue) {
             $o
         }
     }
+}
+else {
+    Write-Warning "Get-SmbShare is not available on this host. Share permissions were not collected."
 }

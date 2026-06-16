@@ -1,0 +1,1 @@
+Get-NetFirewallProfile -All  #Displays settings that apply to the per-profile configurations of the Windows Firewall with Advanced Security

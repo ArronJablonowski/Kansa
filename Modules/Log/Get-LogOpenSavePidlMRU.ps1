@@ -1,4 +1,7 @@
-﻿function Get-RegKeyValueNData {
+﻿<#
+#>
+
+function Get-RegKeyValueNData {
 # Returns values and data for Registry keys
 # http://blogs.technet.com/b/heyscriptingguy/archive/2012/05/11/use-powershell-to-enumerate-registry-property-values.aspx
 Param(

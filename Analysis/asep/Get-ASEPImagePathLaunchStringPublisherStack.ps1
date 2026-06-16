@@ -15,18 +15,18 @@ if (Get-Command logparser.exe) {
 
     $lpquery = @"
     SELECT
-        COUNT(ImagePath, LaunchString, Publisher) as ct,
-        ImagePath,
-        LaunchString,
-        Publisher
+        COUNT([Image Path], [Launch String], [Signer]) as ct,
+        [Image Path],
+        [Launch String],
+        [Signer]
     FROM
         *autorunsc.csv
     WHERE
-        (ImagePath not like 'File not found%')
+        ([Image Path] not like 'File not found%')
     GROUP BY
-        ImagePath,
-        LaunchString,
-        Publisher
+        [Image Path],
+        [Launch String],
+        [Signer]
     ORDER BY
         ct ASC
 "@

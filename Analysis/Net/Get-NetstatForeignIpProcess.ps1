@@ -32,26 +32,46 @@ if (Get-Command logparser.exe) {
     $lpquery = @"
     SELECT
         COUNT(ForeignAddress,
-        Process) as ct,
+        Process,
+        Component) as ct,
         ForeignAddress,
-        Process
+        Process,
+        Component
     FROM
         *netstat.csv
     WHERE
         ConPid not in ('0'; '4') and
         ForeignAddress not like '10.%' and
+        ForeignAddress not like '192.168.%' and
+        ForeignAddress not like '172.16%' and
+        ForeignAddress not like '172.17%' and
+        ForeignAddress not like '172.18%' and
+        ForeignAddress not like '172.19%' and
+        ForeignAddress not like '172.20%' and
+        ForeignAddress not like '172.21%' and
+        ForeignAddress not like '172.22%' and
+        ForeignAddress not like '172.23%' and
+        ForeignAddress not like '172.24%' and
+        ForeignAddress not like '172.25%' and
+        ForeignAddress not like '172.26%' and
+        ForeignAddress not like '172.27%' and
+        ForeignAddress not like '172.28%' and
+        ForeignAddress not like '172.29%' and
+        ForeignAddress not like '172.30%' and
+        ForeignAddress not like '172.31%' and
         ForeignAddress not like '169.254%' and
         ForeignAddress not in ('*'; '0.0.0.0'; 
             '127.0.0.1'; '[::]'; '[::1]')
     GROUP BY
         ForeignAddress,
-        Process
+        Process,
+        Component
     ORDER BY
         Process,
         ct desc
 "@
 
-    & logparser -stats:off -i:csv -dtlines:0 -rtp:-1 $lpquery
+    & logparser -stats:off -i:csv -dtlines:0 -o:csv $lpquery
 
 } else {
     $ScriptName = [System.IO.Path]::GetFileName($MyInvocation.ScriptName)

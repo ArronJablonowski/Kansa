@@ -6,6 +6,8 @@ Pulls frequency of DNSCache entries
 
 This script expects files matching the *DNSCache.csv pattern to be in the
 current working directory.
+
+Simsay, Jason: Modified for LogParser output to CSV.
 .NOTES
 DATADIR DNSCache
 #>
@@ -24,7 +26,7 @@ if (Get-Command logparser.exe) {
         ct ASC
 "@
 
-    & logparser -stats:off -i:csv -dtlines:0 -rtp:-1 "$lpquery"
+    & logparser -stats:off -i:csv -dtlines:0 -o:csv $lpquery
 
 } else {
     $ScriptName = [System.IO.Path]::GetFileName($MyInvocation.ScriptName)

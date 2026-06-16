@@ -5,7 +5,7 @@ Get-Loki.ps1
 Integration with Loki scanner - https://github.com/Neo23x0/Loki
 
 This module will deploy loki scanner to scan endpoints with yara rules and other indicators.
-Please be aware that scan take a very long time and it's resourse intensive. 
+Please be aware that scan takes a very long time and it's resourse intensive. 
 On my machine it takes about 10 Hours to scan Windows folder.
 
 Requires loki.zip file in Modules\Bin\

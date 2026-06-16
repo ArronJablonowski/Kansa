@@ -11,6 +11,8 @@ on Protocol, Component and Process
 This script exepcts files matching the pattern 
 *netstat.csv to be in the current working
 directory
+
+Simsay, Jason: Modified for LogParser output to CSV.
 .NOTES
 DATADIR Netstat
 #>
@@ -42,7 +44,7 @@ if (Get-Command logparser.exe) {
         Cnt, Process desc
 "@
 
-    & logparser -stats:off -i:csv -dtlines:0 -rtp:-1 $lpquery
+    & logparser -stats:off -i:csv -dtlines:0 -o:csv $lpquery
 
 } else {
     $ScriptName = [System.IO.Path]::GetFileName($MyInvocation.ScriptName)

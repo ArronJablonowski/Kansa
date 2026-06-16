@@ -33,10 +33,12 @@ if (Get-Command logparser.exe) {
     SELECT
         COUNT(ForeignAddress,
         ForeignPort,
-        Process) as ct,
+        Process,
+        Component) as ct,
         ForeignAddress,
         ForeignPort,
-        Process
+        Process,
+        Component
     FROM
         *netstat.csv
     WHERE
@@ -48,7 +50,8 @@ if (Get-Command logparser.exe) {
     GROUP BY
         ForeignAddress,
         ForeignPort,
-        Process
+        Process,
+        Component
     ORDER BY
         Process,
         ct desc

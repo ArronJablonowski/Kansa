@@ -1,87 +1,155 @@
-Forked from https://github.com/davehull/Kansa
+# Kansa Incident Response Toolkit
 
-Kansa
-=====
+Kansa is a PowerShell-based incident response and live-response toolkit for Windows environments. This repository includes a GUI launcher, local and remote run handlers, collection modules, saved response configurations, and analysis helpers for packaging results into a repeatable workflow.
 
-A modular incident response framework in Powershell. It's been tested in PSv2 / .NET 2 and
-later and works mostly without issue.
+## What This Project Provides
 
-But really, upgrade to PSv3 or later. Be happy.
+- A Windows GUI launcher for local or remote incident response runs.
+- Saved module configurations for common collection scenarios.
+- Local host collection through `Run-KansaLocal.ps1`.
+- Remote host collection through `Run-KansaRemoteHost.ps1` and WinRM.
+- Module output cleanup, formatting, and archive creation.
+- A third-party binary installer so vendor tools do not need to be committed to the repository.
 
-More info:  
-http://trustedsignal.blogspot.com/search/label/Kansa  
-http://www.powershellmagazine.com/2014/07/18/kansa-a-powershell-based-incident-response-framework/  
+## Repository Layout
 
-## What does it do?
-It uses Powershell Remoting to run user contributed, ahem, user contri-  
-buted modules across hosts in an enterprise to collect data for use  
-during incident response, breach hunts, or for building an environmental  
-baseline.
-
-## How do you use it?
-Here's a very simple command line example you can run on your own local  
-host.  
-
-1.  After downloading the project and unzipping it, you'll likely need  
-to "unblock" the ps1 files. The easiest way to do this if you're using  
-Powershell v3 or later is to cd to the directory where Kansa resides  
-and do:  
-```Powershell
-ls -r *.ps1 | Unblock-File
-```
-1. Ensure that you check your execution policies with PowerShell. Check [Using the Set-ExecutionPolicy Cmdlet](https://technet.microsoft.com/en-us/library/ee176961.aspx) for information on how to do so within your environment.  
-```
-Set-ExecutionPolicy AllSigned | RemoteSigned | Unrestricted
-```
-1. If you're not running PS v3 or later, [Sysinternal's Streams utility](https://technet.microsoft.com/en-us/sysinternals/streams.aspx) can  
-be used to remove the alternate data streams that Powershell uses to  
-determine if files came from the Internet. Once you've removed those  
-ADSes, you'll be able to run the scripts without issue.  
-```
-c:\ streams -sd <Kansa directory>
+```text
+.
++-- Analysis/                         # Analysis scripts and report helpers
++-- Modules/                          # Kansa collection modules
+|   +-- bin/                          # Third-party tools restored by installer script
++-- ToolBox/                          # Saved configs, host lists, and supporting scripts
++-- Kansa_GUI.ps1                     # PowerShell GUI launcher
++-- kansa.ps1                         # Core Kansa runner
++-- Run-KansaLocal.ps1                # Local collection handler
++-- Run-KansaRemoteHost.ps1           # Remote collection handler
++-- Install-KansaThirdPartyBinaries.ps1
 ```
 
-I've not run into any issues running the downloaded scripts via Windows  
-Remote Management / Powershell Remoting through Kansa, so you shouldn't  
-have to do anything if you want to run the scripts via remoting.  
+## Requirements
 
-2.  Open an elevated Powershell Prompt (Right-click Run As Administrator)  
+- Windows PowerShell 5.1 or newer.
+- Administrator privileges for most collection workflows.
+- WinRM/PowerShell Remoting enabled for remote host collection.
+- Internet access when running `Install-KansaThirdPartyBinaries.ps1`.
 
-3.  At the command prompt, enter:
-```Powershell
-.\kansa.ps1 -Target $env:COMPUTERNAME -ModulePath .\Modules -Verbose  
+## Setup
+
+Clone the repository, then restore the third-party helper tools:
+
+```powershell
+.\Install-KansaThirdPartyBinaries.ps1 -Force
 ```
-The script should start collecting data or you may see an error about  
-not having Windows Remote Management enabled. If so, do a little  
-searching online, it's easy to turn on. Turn it on and try again. When  
-it finishes running, you'll have a new Output_timestamp subdirectory,  
-with subdirectories for data collected by each module. You can cd into  
-those subdirectories and checkout the data. There are some analysis  
-scripts in the Analysis directory, but many of those won't make sense  
-on a collection of data from a single host. Kansa was written for  
-collection and analysis of data from dozens, hundreds, thousands, tens  
-of thousands of systems.  
 
-## Running Modules Standalone
-Kansa modules can be run as standalone utilities outside of the Kansa  
-framework. Why might you want to do this? Consider netstat -naob, the  
-output of the command line utility is ugly and doesn't easily lend  
-itself to analysis. Running  
-```Powershell
-Modules\Net\Get-Netstat.ps1
+The installer downloads supported tools from their upstream sources and places them in the paths expected by the existing modules, including:
+
+- `7z.exe` and `7z.dll` in the repository root.
+- Tool binaries under `Modules\bin`.
+- `pii.zip` for PII audit modules.
+
+Memoryze is not downloaded automatically because its vendor download flow does not provide a stable direct URL. If you have downloaded it separately, run:
+
+```powershell
+.\Install-KansaThirdPartyBinaries.ps1 -Force -MemoryzeZipPath C:\Downloads\memoryze.zip
 ```
-as a standalone script will call netstat -naob, but it will return  
-Powershell objects in an easy to read, easy to analyze format. You can  
-easily convert its output to CSV, TSV or XML using normal Powershell  
-cmdlets. Here's an example:  
-```Powershell
-.\Get-Netstat.ps1 | ConvertTo-CSV -Delimiter "`t" -NoTypeInformation | % { $_ -replace "`"" } | Set-Content netstat.tsv
+
+## Running Kansa
+
+### GUI Mode
+
+Run the PowerShell GUI:
+
+```powershell
+.\Kansa_GUI.ps1
 ```
-the result of the above will be a file called netstat.tsv containing  
-unquoted, tab separate values for netstat -naob's ouput.
 
-## Caveats:
-Powershell relies on the Windows API. Your adversary may use subterfuge.*
+From the GUI, choose:
 
-* Collectors can be written to bypass the Windows API as well.  
-Get-RekallPslist.ps1 for example.
+- Local computer or remote host collection.
+- Single remote host or host list.
+- A saved module configuration.
+- `Start Kansa` to begin collection.
+
+### Local Collection
+
+```powershell
+.\Run-KansaLocal.ps1
+```
+
+### Remote Collection
+
+Create or select a host list, then run:
+
+```powershell
+.\Run-KansaRemoteHost.ps1
+```
+
+Remote collection requires working WinRM connectivity and administrative privileges on the target hosts.
+
+## Results
+
+Kansa writes collection output to an `Output_*` directory during execution. Near completion, results are archived and moved to:
+
+```text
+.\Results\
+```
+
+The runner prefers 7-Zip when available. If 7-Zip is unavailable or fails, it falls back to Windows native ZIP compression through `Compress-Archive`.
+
+## Third-Party Tools
+
+Third-party binaries are intentionally excluded from Git by `.gitignore`. Use `Install-KansaThirdPartyBinaries.ps1` to restore them locally.
+
+### Required Third-Party Binaries
+
+The current Kansa modules expect these helper binaries to exist in the paths below. The installer script downloads and places most of them automatically, but they can also be downloaded manually from the listed sources.
+
+| Tool | Manual Download | Expected Project Location |
+|---|---|---|
+| 7-Zip console files: `7z.exe`, `7z.dll` | [7-Zip download page](https://www.7-zip.org/download.html) | `.\7z.exe`, `.\7z.dll`, `.\Modules\bin\7z.exe`, `.\Modules\bin\7z.dll` |
+| 7-Zip helper package: `7z.zip` | Built from `7z.exe` and `7z.dll` by `Install-KansaThirdPartyBinaries.ps1` | `.\Modules\bin\7z.zip` |
+| Sysinternals Autoruns: `autorunsc.exe`, `autorunsc64.exe` | [Autoruns for Windows](https://learn.microsoft.com/en-us/sysinternals/downloads/autoruns) | `.\Modules\bin\autorunsc.exe`, `.\Modules\bin\autorunsc64.exe` |
+| Sysinternals DU: `du.exe`, `du64.exe` | [DU for Windows](https://learn.microsoft.com/en-us/sysinternals/downloads/du) | `.\Modules\bin\du.exe`, `.\Modules\bin\du64.exe` |
+| Sysinternals Handle: `handle.exe`, `handle64.exe` | [Handle](https://learn.microsoft.com/en-us/sysinternals/downloads/handle) | `.\Modules\bin\handle.exe`, `.\Modules\bin\handle64.exe` |
+| Sysinternals ProcDump: `procdump.exe` | [ProcDump](https://learn.microsoft.com/en-us/sysinternals/downloads/procdump) | `.\Modules\bin\procdump.exe` |
+| Sysinternals PsList: `pslist.exe` | [PsTools](https://learn.microsoft.com/en-us/sysinternals/downloads/pstools) | `.\Modules\bin\pslist.exe` |
+| Sysinternals Sigcheck: `sigcheck.exe`, `sigcheck64.exe` | [Sigcheck](https://learn.microsoft.com/en-us/sysinternals/downloads/sigcheck) | `.\Modules\bin\sigcheck.exe`, `.\Modules\bin\sigcheck64.exe` |
+| Sysinternals Streams: `streams.exe` | [Streams](https://learn.microsoft.com/en-us/sysinternals/downloads/streams) | `.\Modules\bin\streams.exe` |
+| NirSoft BrowserAddonsView: `BrowserAddonsView.exe` | [BrowserAddonsView](https://www.nirsoft.net/utils/web_browser_addons_view.html) | `.\Modules\bin\BrowserAddonsView.exe` |
+| NirSoft BrowsingHistoryView: `BrowsingHistoryView.exe` | [BrowsingHistoryView](https://www.nirsoft.net/utils/browsing_history_view.html) | `.\Modules\bin\BrowsingHistoryView.exe` |
+| Eric Zimmerman AppCompatCacheParser: `AppCompatCacheParser.exe` | [Eric Zimmerman's Tools](https://ericzimmerman.github.io/) | `.\Modules\bin\AppCompatCacheParser.exe` |
+| WinPmem: `winpmem-2.1.post4.exe` | [WinPmem releases](https://github.com/Velocidex/WinPmem/releases) | `.\Modules\bin\winpmem-2.1.post4.exe` |
+| Xpdf pdftotext: `pdftotext.exe` | [XpdfReader downloads](https://www.xpdfreader.com/download.html) | `.\Modules\bin\pdftotext.exe` |
+| PII helper package: `pii.zip` | Built from `7z.exe`, `7z.dll`, and `pdftotext.exe` by `Install-KansaThirdPartyBinaries.ps1` | `.\Modules\bin\pii.zip` |
+| Memoryze: `memoryze.zip` | [FireEye/Trellix Market Memoryze](https://fireeye.market/apps/211368) | `.\Modules\bin\memoryze.zip` |
+
+When installing manually, preserve the exact filenames shown above. Several modules copy these files into `$env:SystemRoot` during execution and expect the names to match.
+
+Before redistributing or publishing this project, review upstream licenses for:
+
+- Microsoft Sysinternals tools.
+- NirSoft tools.
+- 7-Zip.
+- Xpdf tools.
+- WinPmem.
+- Eric Zimmerman's tools.
+- Memoryze.
+
+## GitHub Hygiene
+
+The repository is configured to avoid committing generated or sensitive operational files such as:
+
+- `hostlist*`
+- `Output*`
+- `Results/`
+- Third-party binaries restored into `Modules\bin`
+
+Before publishing, run a final scan for local data, host lists, credentials, and generated archives.
+
+## Notes
+
+Some modules depend on optional Windows logs, registry locations, or vendor tools. Where possible, modules report missing logs or missing parameters as warnings instead of throwing noisy PowerShell errors.
+
+## Disclaimer
+
+This toolkit is intended for authorized incident response, system administration, and defensive security work. Review and test modules in a controlled environment before using them in production.

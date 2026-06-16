@@ -4,8 +4,10 @@ Get-SvcTrigStack.ps1
 Requires logparser.exe in path
 Pulls stack rank of Service Triggers from acquired Service Trigger data
 
-This script expects files matching the pattern *svctrigs.tsv to be in 
+This script expects files matching the pattern *svctrigs.csv to be in 
 the current working directory.
+
+Simsay, Jason: Modified for LogParser output to CSV.
 .NOTES
 DATADIR SvcTrigs
 #>
@@ -21,7 +23,7 @@ if (Get-Command logparser.exe) {
         Subtype, 
         Data 
     FROM
-        *svctrigs.csv 
+        *svctrigs.csv
     GROUP BY
         ServiceName, 
         Action, 
@@ -32,7 +34,7 @@ if (Get-Command logparser.exe) {
         ct ASC
 "@
 
-    & logparser  -stats:off -i:csv -dtlines:0 -rtp:-1 $lpquery
+    & logparser  -stats:off -i:csv -dtlines:0 -o:csv $lpquery
 
 } else {
     $ScriptName = [System.IO.Path]::GetFileName($MyInvocation.ScriptName)

@@ -17,21 +17,21 @@ DATADIR Autorunsc
 if (Get-Command logparser.exe) {
     $lpquery = @"
     SELECT
-        COUNT(ImagePath, LaunchString, MD5) as ct,
-        ImagePath,
-        LaunchString,
-        MD5,
-        Publisher
+        COUNT( [Image Path], [Launch String], [MD5] ) as ct,
+        [Image Path],
+        [Launch String],
+        [MD5],
+        [Signer]
     FROM
         *autorunsc.csv
     WHERE
-        Publisher not like '(Verified)%' and
-        (ImagePath not like 'File not found%')
+        [Signer] not like '(Verified)%' and
+        ( [Image Path] not like 'File not found%')
     GROUP BY
-        ImagePath,
-        LaunchString,
-        MD5,
-        Publisher
+        [Image Path],
+        [Launch String],
+        [MD5],
+        [Signer]
     ORDER BY
         ct ASC
 "@

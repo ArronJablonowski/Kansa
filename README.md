@@ -72,6 +72,9 @@ From the GUI, choose:
 - A saved module configuration.
 - `Start Kansa` to begin collection.
 
+
+![Kansa GUI](https://github.com/ArronJablonowski/Kansa/blob/master/ToolBox/MoreKansaScripts/GUI.png?raw=true)
+
 ### Local Collection
 
 ```powershell

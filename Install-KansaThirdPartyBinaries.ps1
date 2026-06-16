@@ -191,17 +191,35 @@ function Install-7Zip {
 function Install-SysinternalsArchive {
     param(
         [Parameter(Mandatory = $true)][string]$ArchiveName,
+        [Parameter(Mandatory = $false)][string[]]$FallbackArchiveNames = @(),
         [Parameter(Mandatory = $true)][hashtable]$FileMap
     )
 
     Write-Step "Installing Sysinternals $ArchiveName"
 
     $work = Join-Path $TempRoot ("sysinternals-" + [IO.Path]::GetFileNameWithoutExtension($ArchiveName))
-    $zipPath = Join-Path $work $ArchiveName
     $extractDir = Join-Path $work 'extract'
     New-Directory $work
 
-    Save-Download -Uri "https://download.sysinternals.com/files/$ArchiveName" -OutFile $zipPath | Out-Null
+    $downloaded = $false
+    $zipPath = $null
+    foreach ($candidateName in @($ArchiveName) + $FallbackArchiveNames) {
+        $candidatePath = Join-Path $work $candidateName
+        try {
+            Save-Download -Uri "https://download.sysinternals.com/files/$candidateName" -OutFile $candidatePath | Out-Null
+            $zipPath = $candidatePath
+            $downloaded = $true
+            break
+        }
+        catch {
+            Write-Verbose "Unable to download Sysinternals archive '$candidateName'. $($_.Exception.Message)"
+        }
+    }
+
+    if (-not $downloaded) {
+        throw "Unable to download Sysinternals archive '$ArchiveName'. Tried: $((@($ArchiveName) + $FallbackArchiveNames) -join ', ')."
+    }
+
     Expand-ZipArchive -ArchivePath $zipPath -DestinationPath $extractDir
 
     foreach ($sourceName in $FileMap.Keys) {
@@ -319,46 +337,79 @@ function Install-Memoryze {
     Copy-ExpectedFile -SourcePath $resolved.Path -DestinationPath (Join-Path $BinDir 'memoryze.zip') -DisplayName 'Modules\bin\memoryze.zip'
 }
 
+function Invoke-InstallStep {
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)][scriptblock]$ScriptBlock
+    )
+
+    try {
+        & $ScriptBlock
+    }
+    catch {
+        $Warnings.Add("$Name was not installed. $($_.Exception.Message)") | Out-Null
+        Write-Warning "$Name was not installed. Continuing with remaining tools."
+    }
+}
+
 try {
     New-Directory $BinDir
     New-Directory $TempRoot
 
-    Install-7Zip
+    Invoke-InstallStep -Name '7-Zip' -ScriptBlock { Install-7Zip }
 
-    Install-SysinternalsArchive -ArchiveName 'Autoruns.zip' -FileMap @{
-        'Autorunsc.exe' = 'autorunsc.exe'
-        'Autorunsc64.exe' = 'autorunsc64.exe'
+    Invoke-InstallStep -Name 'Sysinternals Autoruns' -ScriptBlock {
+        Install-SysinternalsArchive -ArchiveName 'Autoruns.zip' -FileMap @{
+            'Autorunsc.exe' = 'autorunsc.exe'
+            'Autorunsc64.exe' = 'autorunsc64.exe'
+        }
     }
-    Install-SysinternalsArchive -ArchiveName 'DU.zip' -FileMap @{
-        'du.exe' = 'du.exe'
-        'du64.exe' = 'du64.exe'
+    Invoke-InstallStep -Name 'Sysinternals DU' -ScriptBlock {
+        Install-SysinternalsArchive -ArchiveName 'DU.zip' -FileMap @{
+            'du.exe' = 'du.exe'
+            'du64.exe' = 'du64.exe'
+        }
     }
-    Install-SysinternalsArchive -ArchiveName 'Handle.zip' -FileMap @{
-        'handle.exe' = 'handle.exe'
-        'handle64.exe' = 'handle64.exe'
+    Invoke-InstallStep -Name 'Sysinternals Handle' -ScriptBlock {
+        Install-SysinternalsArchive -ArchiveName 'Handle.zip' -FileMap @{
+            'handle.exe' = 'handle.exe'
+            'handle64.exe' = 'handle64.exe'
+        }
     }
-    Install-SysinternalsArchive -ArchiveName 'Procdump.zip' -FileMap @{
-        'procdump.exe' = 'procdump.exe'
+    Invoke-InstallStep -Name 'Sysinternals ProcDump' -ScriptBlock {
+        Install-SysinternalsArchive -ArchiveName 'Procdump.zip' -FileMap @{
+            'procdump.exe' = 'procdump.exe'
+        }
     }
-    Install-SysinternalsArchive -ArchiveName 'PsTools.zip' -FileMap @{
-        'PsList.exe' = 'pslist.exe'
+    Invoke-InstallStep -Name 'Sysinternals PsTools' -ScriptBlock {
+        Install-SysinternalsArchive -ArchiveName 'PSTools.zip' -FallbackArchiveNames @('PsTools.zip') -FileMap @{
+            'PsList.exe' = 'pslist.exe'
+        }
     }
-    Install-SysinternalsArchive -ArchiveName 'Sigcheck.zip' -FileMap @{
-        'sigcheck.exe' = 'sigcheck.exe'
-        'sigcheck64.exe' = 'sigcheck64.exe'
+    Invoke-InstallStep -Name 'Sysinternals Sigcheck' -ScriptBlock {
+        Install-SysinternalsArchive -ArchiveName 'Sigcheck.zip' -FileMap @{
+            'sigcheck.exe' = 'sigcheck.exe'
+            'sigcheck64.exe' = 'sigcheck64.exe'
+        }
     }
-    Install-SysinternalsArchive -ArchiveName 'Streams.zip' -FileMap @{
-        'streams.exe' = 'streams.exe'
+    Invoke-InstallStep -Name 'Sysinternals Streams' -ScriptBlock {
+        Install-SysinternalsArchive -ArchiveName 'Streams.zip' -FileMap @{
+            'streams.exe' = 'streams.exe'
+        }
     }
 
-    Install-NirSoftTool -ZipName 'browseraddonsview-x64.zip' -ExecutableName 'BrowserAddonsView.exe'
-    Install-NirSoftTool -ZipName 'browsinghistoryview-x64.zip' -ExecutableName 'BrowsingHistoryView.exe'
+    Invoke-InstallStep -Name 'NirSoft BrowserAddonsView' -ScriptBlock {
+        Install-NirSoftTool -ZipName 'browseraddonsview-x64.zip' -ExecutableName 'BrowserAddonsView.exe'
+    }
+    Invoke-InstallStep -Name 'NirSoft BrowsingHistoryView' -ScriptBlock {
+        Install-NirSoftTool -ZipName 'browsinghistoryview-x64.zip' -ExecutableName 'BrowsingHistoryView.exe'
+    }
 
-    Install-AppCompatCacheParser
-    Install-WinPmem
-    Install-XpdfPdfToText
-    New-PiiZip
-    Install-Memoryze
+    Invoke-InstallStep -Name 'AppCompatCacheParser' -ScriptBlock { Install-AppCompatCacheParser }
+    Invoke-InstallStep -Name 'WinPmem' -ScriptBlock { Install-WinPmem }
+    Invoke-InstallStep -Name 'Xpdf pdftotext' -ScriptBlock { Install-XpdfPdfToText }
+    Invoke-InstallStep -Name 'pii.zip helper package' -ScriptBlock { New-PiiZip }
+    Invoke-InstallStep -Name 'Memoryze' -ScriptBlock { Install-Memoryze }
 
     Write-Host ''
     Write-Host 'Installed/updated:'

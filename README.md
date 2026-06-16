@@ -134,16 +134,6 @@ The current Kansa modules expect these helper binaries to exist in the paths bel
 
 When installing manually, preserve the exact filenames shown above. Several modules copy these files into `$env:SystemRoot` during execution and expect the names to match.
 
-Before redistributing or publishing this project, review upstream licenses for:
-
-- Microsoft Sysinternals tools.
-- NirSoft tools.
-- 7-Zip.
-- Xpdf tools.
-- WinPmem.
-- Eric Zimmerman's tools.
-- Memoryze.
-
 ## GitHub Hygiene
 
 The repository is configured to avoid committing generated or sensitive operational files such as:

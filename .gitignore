@@ -1,5 +1,7 @@
 # Never upload hostlist
 hostlist*
+/7z.exe
+/7z.dll
 test
 Output*
 Schedule

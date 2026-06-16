@@ -75,6 +75,10 @@ From the GUI, choose:
 
 ![Kansa GUI](https://github.com/ArronJablonowski/Kansa/blob/master/ToolBox/MoreKansaScripts/GUI.png?raw=true)
 
+![Kansa CLI](https://github.com/ArronJablonowski/Kansa/blob/master/ToolBox/MoreKansaScripts/CLI.png?raw=true)
+
+
+
 ### Local Collection
 
 ```powershell

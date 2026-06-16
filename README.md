@@ -72,9 +72,10 @@ From the GUI, choose:
 - A saved module configuration.
 - `Start Kansa` to begin collection.
 
-
+### Kansa GUI
 ![Kansa GUI](https://github.com/ArronJablonowski/Kansa/blob/master/ToolBox/MoreKansaScripts/GUI.png?raw=true)
 
+### Kansa CLI Output (when launched from GUI)
 ![Kansa CLI](https://github.com/ArronJablonowski/Kansa/blob/master/ToolBox/MoreKansaScripts/CLI.png?raw=true)
 
 

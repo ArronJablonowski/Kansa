@@ -13,6 +13,16 @@ This keeps the AutoIt GUI's workflow:
 #>
 
 function Get-PowerShellExecutable {
+    $sysnativeWindowsPowerShell = Join-Path $env:WINDIR 'Sysnative\WindowsPowerShell\v1.0\powershell.exe'
+    if (Test-Path -LiteralPath $sysnativeWindowsPowerShell -PathType Leaf) {
+        return $sysnativeWindowsPowerShell
+    }
+
+    $nativeWindowsPowerShell = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    if (Test-Path -LiteralPath $nativeWindowsPowerShell -PathType Leaf) {
+        return $nativeWindowsPowerShell
+    }
+
     $powershellPath = (Get-Command powershell.exe -ErrorAction SilentlyContinue).Source
     if (-not $powershellPath) {
         $powershellPath = (Get-Command pwsh.exe -ErrorAction SilentlyContinue).Source
@@ -35,22 +45,31 @@ function Test-IsAdministrator {
 if (-not (Test-IsAdministrator)) {
     $powershellPath = Get-PowerShellExecutable
     if ($powershellPath) {
-        Start-Process -FilePath $powershellPath -Verb RunAs -ArgumentList @(
-            '-NoProfile'
-            '-ExecutionPolicy'
-            'Bypass'
-            '-STA'
-            '-File'
-            "`"$PSCommandPath`""
-        ) -WorkingDirectory $PSScriptRoot
-        exit
+        try {
+            Start-Process -FilePath $powershellPath -Verb RunAs -ArgumentList @(
+                '-NoProfile'
+                '-ExecutionPolicy'
+                'Bypass'
+                '-STA'
+                '-File'
+                "`"$PSCommandPath`""
+            ) -WorkingDirectory $PSScriptRoot
+            exit
+        }
+        catch {
+            Write-Error "Kansa GUI must be run as Administrator. $($_.Exception.Message)"
+            exit 1
+        }
     }
+
+    Write-Error 'Kansa GUI must be run as Administrator, but no PowerShell executable could be found for elevation.'
+    exit 1
 }
 
 if ($Host.Runspace.ApartmentState -ne 'STA') {
     $powershellPath = Get-PowerShellExecutable
     if ($powershellPath) {
-        Start-Process -FilePath $powershellPath -ArgumentList @(
+        Start-Process -FilePath $powershellPath -Verb RunAs -ArgumentList @(
             '-NoProfile'
             '-ExecutionPolicy'
             'Bypass'
@@ -86,15 +105,55 @@ function Show-KansaError {
     ) | Out-Null
 }
 
+function Confirm-KansaAdministrator {
+    if (Test-IsAdministrator) {
+        return $true
+    }
+
+    Show-KansaError 'Kansa GUI must be running as Administrator. Close this window and launch it again with elevated privileges.'
+    return $false
+}
+
 function Get-SavedConfigNames {
     $savedConfigsPath = Join-Path $script:ScriptRoot 'ToolBox\SavedConfigs'
     if (-not (Test-Path -LiteralPath $savedConfigsPath -PathType Container)) {
         return @()
     }
 
-    Get-ChildItem -LiteralPath $savedConfigsPath -Directory |
+    Get-ChildItem -LiteralPath $savedConfigsPath -Directory -Force |
         Sort-Object -Property Name |
         Select-Object -ExpandProperty Name
+}
+
+function Update-SavedConfigDropdown {
+    if (-not $script:FolderListCombo) {
+        return
+    }
+
+    $selectedConfig = $script:FolderListCombo.Text
+    $savedConfigNames = @(Get-SavedConfigNames)
+
+    $script:FolderListCombo.BeginUpdate()
+    try {
+        $script:FolderListCombo.Items.Clear()
+
+        if ($savedConfigNames.Count -gt 0) {
+            [void]$script:FolderListCombo.Items.AddRange([object[]]$savedConfigNames)
+
+            if ($savedConfigNames -contains $selectedConfig) {
+                $script:FolderListCombo.Text = $selectedConfig
+            }
+            else {
+                $script:FolderListCombo.SelectedIndex = 0
+            }
+        }
+        else {
+            $script:FolderListCombo.Text = ''
+        }
+    }
+    finally {
+        $script:FolderListCombo.EndUpdate()
+    }
 }
 
 function Initialize-KansaResultsPath {
@@ -171,16 +230,31 @@ function Start-KansaRunner {
         [string]$ScriptName
     )
 
+    if (-not (Confirm-KansaAdministrator)) {
+        return
+    }
+
     $runnerPath = Join-Path $script:ScriptRoot $ScriptName
     if (-not (Test-Path -LiteralPath $runnerPath -PathType Leaf)) {
         Show-KansaError "Error: Could not find $ScriptName."
         return
     }
 
-    $command = 'powershell.exe -ExecutionPolicy Bypass -File "{0}"' -f $runnerPath
+    $powershellPath = Get-PowerShellExecutable
+    if (-not $powershellPath) {
+        Show-KansaError 'Error: Could not find powershell.exe.'
+        return
+    }
 
     try {
-        Start-Process -FilePath $env:ComSpec -ArgumentList @('/k', $command) -WorkingDirectory $script:ScriptRoot
+        Start-Process -FilePath $powershellPath -ArgumentList @(
+            '-NoExit'
+            '-NoProfile'
+            '-ExecutionPolicy'
+            'Bypass'
+            '-File'
+            "`"$runnerPath`""
+        ) -WorkingDirectory $script:ScriptRoot -Verb RunAs
     }
     catch {
         Show-KansaError "Error: Unable to start Kansa.`r`n$($_.Exception.Message)"
@@ -368,18 +442,17 @@ $Group2.Location = New-Object System.Drawing.Point(8, 208)
 $Group2.Size = New-Object System.Drawing.Size(385, 55)
 $Form1.Controls.Add($Group2)
 
-$FolderListCombo = New-Object System.Windows.Forms.ComboBox
-$FolderListCombo.Font = $DefaultGuiFont
-$FolderListCombo.Location = New-Object System.Drawing.Point(16, 24)
-$FolderListCombo.Size = New-Object System.Drawing.Size(353, 25)
-$FolderListCombo.DropDownStyle = 'DropDown'
-$FolderListCombo.AutoCompleteMode = 'SuggestAppend'
-$FolderListCombo.AutoCompleteSource = 'ListItems'
-$savedConfigNames = @(Get-SavedConfigNames)
-if ($savedConfigNames.Count -gt 0) {
-    [void]$FolderListCombo.Items.AddRange([object[]]$savedConfigNames)
-}
-$Group2.Controls.Add($FolderListCombo)
+$script:FolderListCombo = New-Object System.Windows.Forms.ComboBox
+$script:FolderListCombo.Font = $DefaultGuiFont
+$script:FolderListCombo.Location = New-Object System.Drawing.Point(16, 24)
+$script:FolderListCombo.Size = New-Object System.Drawing.Size(353, 25)
+$script:FolderListCombo.DropDownStyle = 'DropDown'
+$script:FolderListCombo.MaxDropDownItems = 30
+$script:FolderListCombo.DropDownHeight = 420
+$script:FolderListCombo.AutoCompleteMode = 'SuggestAppend'
+$script:FolderListCombo.AutoCompleteSource = 'ListItems'
+Update-SavedConfigDropdown
+$Group2.Controls.Add($script:FolderListCombo)
 
 $StartKansa = New-Object System.Windows.Forms.Button
 $StartKansa.Text = 'Start Kansa'
@@ -398,5 +471,7 @@ if ($imagePath) {
     $KansaPicture.ImageLocation = $imagePath
     $Form1.Controls.Add($KansaPicture)
 }
+
+$Form1.Add_Shown({ Update-SavedConfigDropdown })
 
 [void]$Form1.ShowDialog()

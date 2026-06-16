@@ -17,7 +17,7 @@ write the output to a folder named for each module in a time stamped
 output path. Each target will have its data written to separate files.
 
 For example, the Get-PrefetchListing.ps1 module data will be written
-to Output_timestamp\PrefetchListing\Hostname-PrefetchListing.txt.
+to Output_timestamp\PrefetchListing\Hostname-PrefetchListing.csv.
 
 All modules should return Powershell objects. Kansa converts those
 objects into one of several file formats, including csv, json, tsv and
@@ -280,6 +280,18 @@ Param(
 # Opening with a Try so the Finally block at the bottom will always call
 # the Exit-Script function and clean up things as needed.
 Try {
+
+$OutputFormat = if ([string]::IsNullOrWhiteSpace($OutputFormat)) {
+    "CSV"
+}
+else {
+    $OutputFormat.ToUpperInvariant()
+}
+
+if ($OutputFormat -notin @("CSV","JSON","TSV","XML")) {
+    Write-Warning "Unsupported OutputFormat '$OutputFormat' requested. Defaulting to CSV."
+    $OutputFormat = "CSV"
+}
 
 # Long paths prevent data from being written, this is used to test their length
 # Per http://msdn.microsoft.com/en-us/library/aa365247.aspx#maxpath, maximum
@@ -706,21 +718,21 @@ Param(
             }
 
             # save the data
-            switch -Wildcard ($OutputFormat) {
-                "*csv" {
+            switch ($OutputFormat) {
+                "CSV" {
                     $Outfile = $Outfile + ".csv"
                     $Recpt | Export-Csv -NoTypeInformation -Encoding $Encoding $Outfile
                 }
-                "*json" {
+                "JSON" {
                     $Outfile = $Outfile + ".json"
                     $Recpt | ConvertTo-Json -Depth $JSONDepth | Set-Content -Encoding $Encoding $Outfile
                 }
-                "*tsv" {
+                "TSV" {
                     $Outfile = $Outfile + ".tsv"
                     # LogParser can't handle quoted tab separated values, so we'll strip the quotes.
                     $Recpt | ConvertTo-Csv -NoTypeInformation -Delimiter "`t" | ForEach-Object { $_ -replace "`"" } | Set-Content -Encoding $Encoding $Outfile
                 }
-                "*xml" {
+                "XML" {
                     $Outfile = $Outfile + ".xml"
                     $Recpt | Export-Clixml $Outfile -Encoding $Encoding
                 }

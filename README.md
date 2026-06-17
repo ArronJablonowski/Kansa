@@ -2,7 +2,7 @@
 
 Kansa is a PowerShell-based incident response and live-response toolkit for Windows environments. This repository includes a GUI launcher, local and remote run handlers, collection modules, saved response configurations, and analysis helpers for packaging results into a repeatable workflow.
 
-This project is a fork of [davehull/kansa](https://github.com/davehull/kansa), with local updates for this repository's workflows and packaging needs.
+This project is a fork of [davehull/kansa](https://github.com/davehull/kansa), with a GUI interface, and local updates for this repository's workflows and packaging needs. I've also removed the need to stand up a server for log collection, so this version can be deployed faster and easier. 
 
 ## What This Project Provides
 
